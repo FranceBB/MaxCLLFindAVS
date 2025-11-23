@@ -255,7 +255,7 @@ void MaxCLLFind<maxFallAlgorithm, components_per_pixel>::dofindmaxcll_packed_c(c
 }
 
 template<MaxFallAlgorithm maxFallAlgorithm, int components_per_pixel>
-MaxCLLFind<maxFallAlgorithm, components_per_pixel>::MaxCLLFind(PClip clip, IScriptEnvironment* env, float* nitArray)
+MaxCLLFind<maxFallAlgorithm, components_per_pixel>::MaxCLLFind(PClip clip, IScriptEnvironment* env, float* nitArray, bool logIntermediateStats)
     : GenericVideoFilter(clip)
     , nitArray(nitArray)
     , highestrawvalue(0)
@@ -275,6 +275,7 @@ MaxCLLFind<maxFallAlgorithm, components_per_pixel>::MaxCLLFind(PClip clip, IScri
     , MaxFALL(0)
     , MaxFALLFrame(0)
     , fileWriteCounter(0)
+    , logIntermediateStats(logIntermediateStats)
     , statsFileName("") {
 
     int pixelsize = vi.ComponentSize();
@@ -438,7 +439,7 @@ PVideoFrame MaxCLLFind<maxFallAlgorithm, components_per_pixel>::GetFrame(int n, 
             (*this.*processor_)(src, n);
         /* }
     }*/
-	if (framesCounted++ % 100 == 0) {
+    if (logIntermediateStats && framesCounted++ % 100 == 0) {
 		writeCLLStats();
 	}
 
@@ -452,6 +453,9 @@ AVSValue __cdecl create_maxcllfind(AVSValue args, void* user_data, IScriptEnviro
     // 0 = SMPTE2084 recommendation (average of highest channels of all pixels)
     // 1 = Average of all channels of all pixels
     MaxFallAlgorithm maxFallAlgorithm = (MaxFallAlgorithm)args[1].AsInt(MaxFallAlgorithm::MAXFALL_OFFICIAL);
+
+	//reads the parameter (by default is true for backwards compatibility and shows results every 100 frames)
+    bool logIntermediateStats = args[2].AsBool(true);
 
     auto clip = args[0].AsClip();
     auto vi = clip->GetVideoInfo();
@@ -469,24 +473,24 @@ AVSValue __cdecl create_maxcllfind(AVSValue args, void* user_data, IScriptEnviro
 
     bool hasAlpha = vi.IsRGB64() || vi.IsRGB32() || vi.IsPlanarRGBA();
     if (maxFallAlgorithm == MAXFALL_NONE && !hasAlpha) {
-        return new MaxCLLFind<MAXFALL_NONE, 3>(clip, env, nitArray);
+        return new MaxCLLFind<MAXFALL_NONE, 3>(clip, env, nitArray, logIntermediateStats);
     }
     if (maxFallAlgorithm == MAXFALL_NONE && hasAlpha) {
-        return new MaxCLLFind<MAXFALL_NONE, 4>(clip, env, nitArray);
+        return new MaxCLLFind<MAXFALL_NONE, 4>(clip, env, nitArray, logIntermediateStats);
     }
 
     if (maxFallAlgorithm == MAXFALL_OFFICIAL && !hasAlpha) {
-        return new MaxCLLFind<MAXFALL_OFFICIAL, 3>(clip, env, nitArray);
+        return new MaxCLLFind<MAXFALL_OFFICIAL, 3>(clip, env, nitArray, logIntermediateStats);
     }
     if (maxFallAlgorithm == MAXFALL_OFFICIAL && hasAlpha) {
-        return new MaxCLLFind<MAXFALL_OFFICIAL, 4>(clip, env, nitArray);
+        return new MaxCLLFind<MAXFALL_OFFICIAL, 4>(clip, env, nitArray, logIntermediateStats);
     }
 
     if (maxFallAlgorithm == MAXFALL_ALLCHANNELS && !hasAlpha) {
-        return new MaxCLLFind<MAXFALL_ALLCHANNELS, 3>(clip, env, nitArray);
+        return new MaxCLLFind<MAXFALL_ALLCHANNELS, 3>(clip, env, nitArray, logIntermediateStats);
     }
     if (maxFallAlgorithm == MAXFALL_ALLCHANNELS && hasAlpha) {
-        return new MaxCLLFind<MAXFALL_ALLCHANNELS, 4>(clip, env, nitArray);
+        return new MaxCLLFind<MAXFALL_ALLCHANNELS, 4>(clip, env, nitArray, logIntermediateStats);
     }
 }
 
@@ -499,6 +503,6 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScri
 	// 1 - reference clip
 	// 2 - testclip (for example a downsized version of the clip to be regraded. this one will be actually used for the regrading and comparing to reference.
 	// 3+ - additional reference clips (not supported atm, will be ignored)
-    env->AddFunction("maxcllfind", "c[maxFallAlgorithm]i", create_maxcllfind, 0);
+    env->AddFunction("maxcllfind", "c[maxFallAlgorithm]i[LogIntermediateStats]b", create_maxcllfind, 0);
     return "Mind your sugar level";
 }
