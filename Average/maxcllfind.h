@@ -13,7 +13,7 @@ template<MaxFallAlgorithm maxFallAlgorithm, int components_per_pixel>
 class MaxCLLFind : public GenericVideoFilter {
 public:
 
-    MaxCLLFind(PClip clip, IScriptEnvironment* env, float* nitArray);
+    MaxCLLFind(PClip clip, IScriptEnvironment* env, float* nitArray, bool logIntermediateStats);
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
     ~MaxCLLFind();
     
@@ -56,5 +56,6 @@ private:
 
     int fileWriteCounter;
     std::string statsFileName;
+    bool logIntermediateStats;
 };
 
